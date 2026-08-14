@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAVM - Sistema de Avaliação Virtual Mazivila</title>
+<script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:Arial}
+body{margin:0;background:#f4f6f9;position:relative}
+body::before{content:"";position:fixed;inset:0;background:url('img_SAVM.png') center no-repeat;background-size:70%;opacity:0.08;pointer-events:none;z-index:0}
+header{background:#0a4d68;color:#fff;padding:20px;text-align:center;position:relative;z-index:2}
+header h1{margin:0;font-size:24px}
+.container{max-width:900px;margin:20px auto;padding:20px;background:rgba(255,255,255,0.95);border-radius:8px;position:relative;z-index:2}
+input,textarea{width:100%;padding:8px;margin:5px 0;border:1px solid #ccc;border-radius:4px}
+input:focus,textarea:focus{outline:none;border:1px solid #0a4d68}
+.pergunta{border:2px dashed #0a4d68;padding:15px;margin:15px 0;border-radius:8px;background:#f8f9fa;position:relative}
+.btn{background:#0a4d68;color:#fff;border:none;padding:10px 18px;border-radius:5px;cursor:pointer;margin:5px;font-weight:bold}
+.btn-green{background:#28a745}.btn-red{background:#dc3545}.btn-whats{background:#25D366}.btn-blue{background:#007bff}.btn-excel{background:#217346}
+.btn-small{padding:0;font-size:22px;background:#0a4d68;color:#fff;border:none;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;margin:0;cursor:pointer;overflow:hidden;position:relative}
+.btn-small input[type="file"]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.hidden{display:none}
+.resultado{background:#e7f3ff;padding:15px;margin-top:10px;border-radius:5px;border-left:4px solid #0a4d68}
+#tela-aluno{position:fixed;inset:0;background:rgba(255,255,255,0.95);z-index:9999;overflow:auto;padding:15px}
+#contadorSaidas{position:fixed;top:10px;right:10px;background:#dc3545;color:#fff;padding:10px;border-radius:8px;font-weight:bold;z-index:10000}
+.comprovativo{text-align:center;padding:30px;background:#d4edda;border:3px solid #28a745;border-radius:10px;position:relative;z-index:2}
+.nota{font-size:50px;color:#28a745;font-weight:bold;margin:15px 0}
+.questao{margin:20px 0;padding-bottom:10px;border-bottom:1px solid #eee;text-align:center;background:rgba(255,255,255,0.9);border-radius:8px;padding:15px}
+.escola-cabecalho{text-align:center;padding:10px;background:#0a4d68;color:#fff;margin-bottom:15px;border-radius:5px}
+.erro{border:2px solid red!important}
+.aviso-vermelho{color:#dc3545;font-size:14px;font-weight:bold;margin-bottom:10px}
+label input[type="radio"]{width:auto;margin-right:8px}
+.preview-img{max-width:400px;width:100%;height:auto;margin:10px 0;display:block;border:1px solid #ccc;border-radius:4px;position:relative}
+.questao-img{max-width:100%;height:auto;margin:10px 0;border:1px solid #ccc;border-radius:4px}
+.btn-remove-img{position:absolute;top:5px;right:5px;background:#dc3545;color:#fff;border:none;border-radius:50%;width:25px;height:25px;cursor:pointer;font-weight:bold}
+.upload-status{font-size:12px;color:#28a745;margin-top:5px}
+.carregando{color:#0a4d68}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+table th{background:#0a4d68;color:#fff;padding:10px;text-align:left}
+table td{padding:10px;border-bottom:1px solid #ddd}
+footer{text-align:center;padding:15px;font-size:12px;color:#666;margin-top:20px;position:relative;z-index:2}
+.verificando{text-align:center;padding:50px}
+.verificando p{font-size:18px;color:#0a4d68;font-weight:bold}
+.verificando img{width:120px;opacity:0.6}
+</style>
+</head>
+<body>
+<header>
+    <h1>Escola Secundária de Mazivila</h1>
+  <p>SAVM-Sistema de Avaliação Virtual Mazivila</p>
+</header>
+
+<div class="container" id="tela-prof">
+  <h2>I.Dados</h2>
+  <label>Tipo de Avaliação <input id="tipo" ></label>
+  <label>Disciplina <input id="disciplina"></label>
+  <label>Classe <input id="classe" placeholder=""></label>
+  <label>Data de avaliação<input id="data" type="date"></label>
+  <label>Nº do WhatsApp do professor<input id="whats" placeholder="+258xxxxxxxxx"></label>
+  <label>Nº de Perguntas <input id="nPerg" type="number" value=""></label>
+  <label>Cotação Total <input id="cot" type="number" value="20"></label>
+  <label>Nº de saídas permitidas <input id="saidas" type="number" value="" min="1"></label>
+
+  <h2>II.Perguntas da avaliação</h2>
+  <div id="perguntas"></div>
+  <button class="btn" onclick="addP()">+ Adicionar Pergunta</button>
+
+  <h2>III.Gerar Avaliação</h2>
+  <button class="btn" onclick="gerarLink()">Gerar Link</button>
+  <button class="btn btn-blue" onclick="verRelatorio()"> Relatório de Notas</button>
+  <div id="link" class="hidden resultado"></div>
+  <div id="relatorio" class="hidden resultado"></div>
+</div>
+
+<div id="tela-aluno" class="hidden"></div>
+<footer>
+  SAVM v1.0 - Sistema de Avaliação Virtual Mazivila © 2026
+</footer>
+<script>
+const jsPDF = window.jspdf.jsPDF;
+const API_URL = "https://api.sheetbest.com/sheets/f571368c-451b-40c2-96f7-d8e5d9477510";
+let banco=[], aluno={}, saidas=3, perguntas=[], respostasAluno=[], cont=0, config=null, notaFinal=0, cotacaoFinal=20, linkGerado="", provaIniciada=false, saidasUsadas=0, logoBase64="";
+let horaInicio = ""; // HORA QUE COMEÇOU
+let horaFim = ""; // HORA QUE TERMINOU
+const NOME_ESCOLA = "Escola Secundária de Mazivila";
+const LOGO_URL = "img_SAVM.png";
+const IMGBB_KEY = "427e4d6479c56aba1bee0eaadaa4b985";
+const $ = id => document.getElementById(id);
+
+// CARREGAR LOGO EM BASE64 PRA USAR NO PDF
+function carregarLogoBase64(){
+  const img = new Image();
+  img.crossOrigin = "Anonymous";
+  img.onload = function(){
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    logoBase64 = canvas.toDataURL('image/png');
+  }
+  img.src = LOGO_URL;
+}
+carregarLogoBase64();
+
+function addP(){
+  const i=cont++;
+  const div = document.createElement('div');
+  div.className = 'pergunta';
+  div.id = 'p'+i;
+  div.innerHTML = `<button style="position:absolute;top:10px;right:10px;background:#dc3545;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-weight:bold;font-size:16px;z-index:10" onclick="this.parentElement.remove()">X</button>
+    <p class="aviso-vermelho"> Mantenha a alternativa A correta</p>
+    <div class="pergunta-header"><b>Pergunta ${i+1}</b></div>
+    <div class="pergunta-input">
+      <textarea id="e${i}" style="font-weight:bold"></textarea>
+      <label class="btn btn-small" title="Adicionar Imagem da Galeria">🖼️<input type="file" id="galeria${i}" accept="image/*" onchange="lerArquivo(this, ${i})"></label>
+    </div>
+    <div id="imgContainer${i}"></div>
+    <div id="status${i}" class="upload-status"></div>
+    <input type="hidden" id="img${i}">
+    <label><input type="radio" name="c${i}" value="0" checked> <input id="o${i}0" placeholder="A"></label>
+    <label><input type="radio" name="c${i}" value="1"> <input id="o${i}1" placeholder="B"></label>
+    <label><input type="radio" name="c${i}" value="2"> <input id="o${i}2" placeholder="C"></label>
+    <label><input type="radio" name="c${i}" value="3"> <input id="o${i}3" placeholder="D"></label>`;
+  $('perguntas').appendChild(div);
+}
+addP(); addP();
+
+async function uploadImgBB(base64, i){
+  $(`status${i}`).innerHTML = `<span class="carregando">Enviando...</span>`;
+  const formData = new FormData();
+  formData.append("image", base64.split(',')[1]);
+  try{
+    const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, {method: "POST", body: formData});
+    const data = await res.json();
+    if(data.success){$(`status${i}`).innerHTML = `<span>Enviado</span>`;return data.data.url;}
+    else{ throw new Error(data.error.message); }
+  }catch(e){
+    $(`status${i}`).innerHTML = `<span style="color:red">Erro ao enviar</span>`;
+    alert("Erro ao enviar imagem: " + e.message);
+    return "";
+  }
+}
+
+async function lerArquivo(input, i){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    let img = new Image();
+    img.onload = async function(){
+      let canvas = document.createElement('canvas');
+      let ctx = canvas.getContext('2d');
+      let maxW = 1200;let scale = Math.min(1, maxW / img.width);
+      canvas.width = img.width * scale;canvas.height = img.height * scale;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      const url = await uploadImgBB(dataUrl, i);
+      if(url) setImagem(i, url);
+    }
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value = "";
+}
+
+function setImagem(i, src){ $(`img${i}`).value = src; $(`imgContainer${i}`).innerHTML = `<div style="position:relative;display:inline-block"><img src="${src}" class="preview-img"><button class="btn-remove-img" onclick="removerImagem(${i})">X</button></div>`; }
+function removerImagem(i){ $(`img${i}`).value = ""; $(`imgContainer${i}`).innerHTML = ""; $(`status${i}`).innerHTML = ""; }
+function formatarWhats(num){ let n = num.replace(/\D/g,''); if(n.startsWith('258')) return n; if(n.startsWith('0')) n = n.substring(1); return '258' + n; }
+
+function coletar(){
+  banco=[];
+  document.querySelectorAll('.pergunta').forEach(p=>{
+    const i=p.id.substring(1);
+    const en=$(`e${i}`)?.value.trim();
+    const ce=$(`input[name="c${i}"]:checked`);
+    const op=[0,1,2,3].map(j=>$(`o${i}${j}`)?.value.trim()||"").filter(x=>x!="");
+    const imagem = $(`img${i}`)?.value.trim();
+    if(en && op.length >= 2){ banco.push({enun:en, opcoes:op, certa:ce?parseInt(ce.value):0, imagem: imagem || ""}); }
+  });
+  if(banco.length == 0){ alert("Adicione pelo menos 1 pergunta completa"); return null; }
+  let saidasProf = parseInt($('saidas').value);if(saidasProf < 1) saidasProf = 1;
+  const senha = `SAVM-${$('classe').value}-${$('disciplina').value}-${$('tipo').value}-${$('data').value}-${$('whats').value}`.toUpperCase();
+  return { tipo:$('tipo').value, disciplina:$('disciplina').value, classe:$('classe').value, data:$('data').value, whats:formatarWhats($('whats').value), nPerg:$('nPerg').value, cotacao:$('cot').value, saidas:saidasProf, senha: senha, perguntas:banco }
+}
+
+const cod = c => btoa(encodeURIComponent(JSON.stringify(c)));
+const dec = c => JSON.parse(decodeURIComponent(atob(c)));
+function embaralhar(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function salvarResposta(i,val){respostasAluno[i]=parseInt(val);}
+
+function gerarLink(){
+  const c=coletar();if(!c) return;
+  if(!c.tipo ||!c.disciplina ||!c.classe ||!c.data){alert("Preencha Tipo, Disciplina, Classe e Data");return;}
+  if(!c.whats){alert("Preencha o WhatsApp do professor com números");return;}
+  const enviando = document.querySelector('.carregando');
+  if(enviando){ alert("Aguarde terminar de enviar as imagens"); return; }
+  linkGerado = location.href.split('?')[0]+'?t='+cod(c);
+  $('link').classList.remove('hidden');$('relatorio').classList.add('hidden');
+  $('link').innerHTML=`<b>Link da Avaliação:</b><br><a href="${linkGerado}" target="_blank">${linkGerado}</a><br>
+  <button class="btn btn-green" onclick="navigator.clipboard.writeText('${linkGerado}');alert('Copiado')">Copiar</button>
+  <button class="btn btn-whats" onclick="enviarWhats()">Enviar no WhatsApp</button>`;
+}
+
+function verRelatorio(){
+  const c=coletar();if(!c) return;
+  if(!c.tipo||!c.disciplina||!c.classe||!c.data){alert("Preencha Tipo, Disciplina, Classe e Data primeiro");return;}
+  $('link').classList.add('hidden');$('relatorio').classList.remove('hidden');
+  $('relatorio').innerHTML=`<h3>Relatório: ${c.tipo} - ${c.disciplina} - ${c.classe}</h3>
+  <p style="color:red"><b>Atenção:</b> Ao clicar abaixo, vai baixar as notas e apagar da base para a próxima prova.</p>
+  <button class="btn btn-excel" onclick="baixarEZerar()">Baixar Excel e Zerar</button>
+  <div id="tabelaNuvem"></div>`;
+}
+
+async function baixarEZerar(){
+  const c=coletar();$('tabelaNuvem').innerHTML = "Carregando dados da nuvem...";
+  const res = await fetch(API_URL);let dados = await res.json();
+  let dadosProva = dados.filter(d => d.Senha === c.senha);
+  if(dadosProva.length === 0){alert("Nenhum aluno fez esta prova ainda."); $('tabelaNuvem').innerHTML = ""; return;}
+  dadosProva.sort((a, b) => {let numA = parseInt(a.Numero) || 999;let numB = parseInt(b.Numero) || 999;if(numA!== numB) return numA - numB;return a.Nome.localeCompare(b.Nome);});
+  let plan = [["Nº","Nome","Turma","Disciplina","Tipo","Nota","Saídas","Data","Hora Início","Hora Fim","Duração"]];
+  dadosProva.forEach(d=>plan.push([d.Numero,d.Nome,d.Turma,d.Disciplina,d.Tipo,d.Nota,d.Saidas,d.Data,d.HoraInicio,d.HoraFim,d.Duracao]));
+  const ws=XLSX.utils.aoa_to_sheet(plan);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Notas");
+  XLSX.writeFile(wb,`Pauta_${c.disciplina}_${c.classe}_${c.tipo}.xlsx`);
+  let msg = `EXCEL BAIXADO COM SUCESSO!\n\nForam encontradas ${dadosProva.length} notas.\nDeseja zerar a base agora?`;
+  if(confirm(msg)){
+    let apagados = 0;
+    for(let d of dadosProva){await fetch(`${API_URL}/${d.id}`, {method: "DELETE"});apagados++;}
+    alert(`Base zerada com sucesso! ${apagados} notas apagadas.`);
+    $('tabelaNuvem').innerHTML = `<p style="color:green"><b>Base limpa.</b> Aguardando nova prova.</p>`;
+  } else {
+    alert("Base NÃO foi apagada.");
+    let html=`<table><tr><th>Nº</th><th>Nome</th><th>Turma</th><th>Nota</th><th>Saídas</th><th>Data</th><th>Início</th><th>Fim</th></tr>`;
+    dadosProva.forEach(d=>{html+=`<tr><td>${d.Numero}</td><td>${d.Nome}</td><td>${d.Turma}</td><td><b>${d.Nota}</b></td><td>${d.Saidas}</td><td>${d.Data}</td><td>${d.HoraInicio}</td><td>${d.HoraFim}</td></tr>`});
+    html+=`</table>`;$('tabelaNuvem').innerHTML=html;
+  }
+}
+
+function enviarWhats(){const texto=`Olá! Link da avaliação SAVM - ${$('disciplina').value} - ${$('classe').value}%0A*Tipo:* ${$('tipo').value} *Data:* ${$('data').value}%0A%0A${linkGerado}`;const url=`https://wa.me/${$('whats').value}?text=${texto}`;window.open(url,'_blank');}
+
+function abrir(){
+  const u=new URLSearchParams(location.search);
+  let t=u.get('t');
+  if(!t)return;
+  config=dec(t);
+  $('tela-prof').classList.add('hidden');$('tela-aluno').classList.remove('hidden');
+  saidas=parseInt(config.saidas)||1;saidasUsadas=0;
+  let nPerg = config.nPerg || config.perguntas.length;
+  let valorPerg = (parseFloat(config.cotacao)/parseInt(nPerg)).toFixed(1);
+
+  $('tela-aluno').innerHTML=`
+  <div id="contadorSaidas">Saídas: ${saidas}</div>
+  <div class="escola-cabecalho"><h2>${NOME_ESCOLA}</h2></div>
+  <h3>AVALIAÇÃO VIRTUAL</h3>
+  <div style="background:#e7f3ff;padding:15px;border-radius:8px;margin-bottom:15px;text-align:left">
+    <p><b>Tipo:</b> ${config.tipo}</p>
+    <p><b>Disciplina:</b> ${config.disciplina}</p>
+    <p><b>Classe:</b> ${config.classe}</p>
+    <p><b>Data:</b> ${config.data}</p>
+    <p><b>Nº de Perguntas:</b> ${nPerg}</p>
+    <p><b>Cotação Total:</b> ${config.cotacao} | <b>Valor por pergunta:</b> ${valorPerg}</p>
+  </div>
+  <label>Nome Completo<input id="n"></label>
+  <label>Turma<input id="tu" placeholder="${config.classe}"></label>
+  <label>Nº<input id="num" type="number"></label>
+  <button class="btn btn-green" onclick="iniciar()">Iniciar Prova</button>`;
+}
+
+let listenerSaidaAtivo = false;
+function monitorarSaida(){
+  if(listenerSaidaAtivo) return;listenerSaidaAtivo = true;
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden && provaIniciada && saidas > 0){
+      saidasUsadas++;saidas--;
+      if($('contadorSaidas'))$('contadorSaidas').innerText=`Saídas: ${saidas}`;
+      if(saidas <= 0){finalizar();}
+    }
+  });
+}
+
+function montar(){
+  respostasAluno=[];listenerSaidaAtivo = false;
+  let basePerg=[...config.perguntas];
+  if(config.nPerg)basePerg=basePerg.slice(0,parseInt(config.nPerg));
+  perguntas=[];
+  let nPerg = basePerg.length;
+  let valorPerg = (parseFloat(config.cotacao)/parseInt(nPerg)).toFixed(1);
+
+  let html=`<div id="contadorSaidas">Saídas: ${saidas}</div>
+  <div class="escola-cabecalho"><h2>${NOME_ESCOLA}</h2></div>
+  <h3>${config.disciplina} - ${config.tipo}</h3>
+  <p style="text-align:center"><b>Aluno:</b> ${aluno.nome} | <b>Turma:</b> ${aluno.turma} | <b>Nº:</b> ${aluno.num}</p>
+  <p style="text-align:center;font-size:12px"><b>${nPerg} Perguntas</b> | <b>Cotação:</b> ${config.cotacao} | <b>Cada vale:</b> ${valorPerg}</p><hr>`;
+
+  basePerg.forEach((p,i)=>{
+    let ops=p.opcoes.map((o,j)=>({txt:o,idx:j}));
+    ops=embaralhar(ops);
+    perguntas.push({gab:p.certa});
+    html+=`<div class="questao"><p><b>${i+1}.</b> ${p.enun}</p>`;
+    if(p.imagem)html+=`<img src="${p.imagem}" class="questao-img">`;
+    ops.forEach((o,j)=>html+=`<label style="text-align:left;display:block"><input type="radio" name="q${i}" value="${o.idx}" onchange="salvarResposta(${i},${o.idx})"> ${o.txt}</label>`);
+    html+=`</div>`;
+  });
+  html+=`<button class="btn btn-red" onclick="finalizar()">FINALIZAR PROVA</button>`;
+  $('tela-aluno').innerHTML=html;
+}
+
+async function iniciar(){
+  const nome=$('n').value.trim();
+  const turma=$('tu').value.trim();
+  const num=$('num').value.trim();
+  $('tu').classList.remove('erro');$('num').classList.remove('erro');
+  let erro=false;
+  if(!nome){alert("Preencha o Nome");return;}
+  if(!turma){$('tu').classList.add('erro');erro=true;}
+  if(!num){$('num').classList.add('erro');erro=true;}
+  if(erro){alert("Preencha Turma e Nº para iniciar");return;}
+
+  // DUPLA PROTECAO 1: VERIFICAR LOCALSTORAGE
+  const chaveBloqueio = `SAVM-BLOQUEADO-${config.senha}-${num}`;
+  if(localStorage.getItem(chaveBloqueio)){
+    $('tela-aluno').innerHTML = `<div class="comprovativo" style="background:#f8d7da;border-color:#dc3545">
+      <h2>ACESSO NEGADO</h2>
+      <p>Este dispositivo já registou esta avaliação com o nº ${num}.</p>
+      </div>`;
+    return;
+  }
+
+  // GUARDAR HORA DE INICIO
+  const agora = new Date();
+  horaInicio = agora.toLocaleTimeString('pt-PT', {hour: '2-digit', minute:'2-digit'});
+
+  $('tela-aluno').innerHTML = `
+  <div class="verificando">
+    <img src="${LOGO_URL}">
+    <p>Verificando se já fez a prova...</p>
+  </div>`;
+
+  try{
+    const res = await fetch(API_URL);
+    let dados = await res.json();
+    let jaFez = dados.find(d => d.Senha === config.senha && d.Numero === num);
+    if(jaFez){
+      $('tela-aluno').innerHTML = `<div class="comprovativo" style="background:#f8d7da;border-color:#dc3545">
+        <h2>ACESSO NEGADO</h2>
+        <p>Este nº ${num} já realizou esta avaliação.</p>
+        <p><b>Nota registada: ${jaFez.Nota}</b></p>
+        </div>`;
+      return;
+    }
+  }catch(e){
+    alert("Sem internet. Não foi possível verificar na nuvem.");
+    return;
+  }
+
+  aluno={nome,turma,num};
+  provaIniciada=true;
+  montar();
+  monitorarSaida();
+}
+
+function calcularDuracao(inicio, fim){
+  const [h1,m1] = inicio.split(':').map(Number);
+  const [h2,m2] = fim.split(':').map(Number);
+  let min = (h2*60 + m2) - (h1*60 + m1);
+  if(min < 0) min += 24*60;
+  return `${min} min`;
+}
+
+function gerarPDF(){
+  const doc=new jsPDF();
+  if(logoBase64) doc.addImage(logoBase64, 'PNG', 35, 60, 140, 140, undefined, 'FAST'); // marca d'água continua no meio
+
+  doc.setFontSize(16);
+  doc.text(NOME_ESCOLA,105,20,{align:"center"});
+  doc.setFontSize(12);
+  doc.text(`COMPROVATIVO DE AVALIAÇÃO`,105,30,{align:"center"});
+  doc.line(20,35,190,35);
+
+  let nPerg = config.nPerg || config.perguntas.length;
+  let valorPerg = (parseFloat(config.cotacao)/parseInt(nPerg)).toFixed(1);
+  let duracao = calcularDuracao(horaInicio, horaFim);
+
+  // NOTA NO CANTO SUPERIOR DIREITO - VERMELHO E NEGRITO
+  doc.setFontSize(22);
+  doc.setTextColor(220, 0, 0); // VERMELHO
+  doc.setFont(undefined, 'bold');
+  doc.text(`NOTA: ${notaFinal}/${cotacaoFinal}`, 120, 80, {align: "right"});
+  
+  // Resetar cor e fonte para o resto
+  doc.setTextColor(0, 0, 0); // PRETO
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(11);
+
+  doc.text(`Aluno: ${aluno.nome}`,20,45);
+  doc.text(`Turma: ${aluno.turma} Nº: ${aluno.num}`,20,53);
+  doc.text(`Classe: ${config.classe}`,20,61);
+  doc.text(`Disciplina: ${config.disciplina}`,20,69);
+  doc.text(`Tipo: ${config.tipo}`,20,77);
+  doc.text(`Data: ${config.data}`,20,85);
+  doc.text(`Hora Início: ${horaInicio}`,20,93);
+  doc.text(`Hora Fim: ${horaFim}`,20,101);
+  doc.text(`Duração: ${duracao}`,20,109);
+  doc.text(`Nº Perguntas: ${nPerg}`,20,117);
+  doc.text(`Cotação: ${config.cotacao} | Valor por pergunta: ${valorPerg}`,20,125);
+  doc.text(`Saídas: ${saidasUsadas}/${config.saidas}`,20,133);
+
+  doc.setFontSize(9);
+  doc.text(`Sistema SAVM`,105,145,{align:"center"});
+  doc.save(`Comprovativo_${aluno.nome}.pdf`);
+}
+
+function enviarNotaWhats(){
+  let duracao = calcularDuracao(horaInicio, horaFim);
+  const msg=`*RESULTADO SAVM*%0A%0A*Aluno:* ${aluno.nome}%0A*Turma:* ${aluno.turma} Nº${aluno.num}%0A*Disciplina:* ${config.disciplina}%0A*Tipo:* ${config.tipo}%0A*Data:* ${config.data}%0A*Início:* ${horaInicio} *Fim:* ${horaFim} *Duração:* ${duracao}%0A*Nota:* ${notaFinal}%0A*Saídas:* ${saidasUsadas}/${config.saidas}`;
+  const url=`https://wa.me/${config.whats}?text=${msg}`;
+  window.open(url,'_blank');
+}
+
+async function finalizar(){
+  provaIniciada=false;
+
+  // GUARDAR HORA DE FIM
+  const agora = new Date();
+  horaFim = agora.toLocaleTimeString('pt-PT', {hour: '2-digit', minute:'2-digit'});
+  let duracao = calcularDuracao(horaInicio, horaFim);
+
+  let ac=0;
+  perguntas.forEach((p,i)=>{if(respostasAluno[i]===p.gab)ac++;});
+  const totalQ=perguntas.length;
+  cotacaoFinal=parseFloat(config.cotacao)||20;
+  notaFinal=totalQ>0?((ac/totalQ)*cotacaoFinal).toFixed(1):0;
+
+  const dadosNuvem = {
+    Nome: aluno.nome,
+    Turma: aluno.turma,
+    Numero: aluno.num,
+    Disciplina: config.disciplina,
+    Tipo: config.tipo,
+    Classe: config.classe,
+    Nota: notaFinal,
+    Saidas: `${saidasUsadas}/${config.saidas}`,
+    Data: config.data,
+    HoraInicio: horaInicio,
+    HoraFim: horaFim,
+    Duracao: duracao,
+    Senha: config.senha
+  };
+
+  try{
+    await fetch(API_URL, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify([dadosNuvem])
+    });
+  }catch(e){
+    alert("Erro ao salvar nota. Sem internet? Nota: " + notaFinal);
+  }
+
+  // DUPLA PROTECAO 2: GRAVAR NO LOCALSTORAGE
+  const chaveBloqueio = `SAVM-BLOQUEADO-${config.senha}-${aluno.num}`;
+  localStorage.setItem(chaveBloqueio, JSON.stringify(dadosNuvem));
+
+  $('tela-aluno').innerHTML=`<div class="comprovativo"><h2>AVALIAÇÃO FINALIZADA</h2><p><b>${aluno.nome}</b></p><p>${config.disciplina} - ${config.tipo}</p><div class="nota">${notaFinal}</div><p><b>Início:</b> ${horaInicio} | <b>Fim:</b> ${horaFim} | <b>Duração:</b> ${duracao}</p><button class="btn btn-green" onclick="gerarPDF()">Baixar Comprovativo PDF</button><button class="btn btn-whats" onclick="enviarNotaWhats()">Enviar Nota ao Professor</button></div>`;
+
+  gerarPDF();
+  setTimeout(enviarNotaWhats,1000);
+}
+
+if(location.search.includes('t='))abrir();
+</script>
+</body>
+</html>
